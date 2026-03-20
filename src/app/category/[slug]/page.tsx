@@ -1,0 +1,48 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import EpisodeListItem from "@/components/EpisodeListItem";
+import { getCategoryBySlug } from "@/lib/catalog";
+import { normalizeLang, type Lang } from "@/lib/i18n";
+import TranslateText from "@/components/TranslateText";
+
+export default async function CategoryPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const lang = normalizeLang((await cookies()).get("tt_lang")?.value) as Lang;
+  const { slug } = await params;
+  const category = await getCategoryBySlug(slug);
+  if (!category) notFound();
+
+  return (
+    <main className="mx-auto w-full max-w-4xl px-4 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">
+          <TranslateText
+            text={category.name}
+            lang={lang}
+            enabled={lang !== "en"}
+          />
+        </h1>
+        {category.description ? (
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <TranslateText
+              text={category.description}
+              lang={lang}
+              enabled={lang !== "en"}
+            />
+          </p>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {category.episodes.map((episode) => (
+          <EpisodeListItem key={episode.slug} episode={episode} lang={lang} />
+        ))}
+      </div>
+    </main>
+  );
+}
+

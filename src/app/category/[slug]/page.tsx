@@ -1,17 +1,20 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import EpisodeListItem from "@/components/EpisodeListItem";
-import { getCategoryBySlug } from "@/lib/catalog";
-import { normalizeLang, type Lang } from "@/lib/i18n";
+import { getCatalog, getCategoryBySlug } from "@/lib/catalog";
+import type { Lang } from "@/lib/i18n";
 import TranslateText from "@/components/TranslateText";
+
+export async function generateStaticParams() {
+  const catalog = await getCatalog();
+  return catalog.categories.map((category) => ({ slug: category.slug }));
+}
 
 export default async function CategoryPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const lang = normalizeLang((await cookies()).get("tt_lang")?.value) as Lang;
+  const lang = "fr" as Lang;
   const { slug } = await params;
   const category = await getCategoryBySlug(slug);
   if (!category) notFound();

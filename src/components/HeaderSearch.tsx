@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type SearchItem = {
   id: string;
@@ -11,6 +10,7 @@ type SearchItem = {
   subtitle?: string;
   href: string;
   thumbnailUrl?: string;
+  searchText: string;
 };
 
 export default function HeaderSearch({
@@ -18,54 +18,39 @@ export default function HeaderSearch({
 }: {
   placeholder: string;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const initialQ = searchParams?.get("q") ?? "";
-  const [q, setQ] = useState(initialQ);
-  const [items, setItems] = useState<SearchItem[]>([]);
+  const [q, setQ] = useState("");
+  const [catalogItems, setCatalogItems] = useState<SearchItem[]>([]);
   const [open, setOpen] = useState(false);
-
-  const targetPath = useMemo(() => (pathname === "/" ? "/" : "/"), [pathname]);
 
   useEffect(() => {
     let cancelled = false;
-    const value = q.trim();
-    if (value.length < 2) {
-      setItems([]);
-      setOpen(false);
-      return;
-    }
-
-    const t = window.setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(value)}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as { items?: SearchItem[] };
-        if (cancelled) return;
-        setItems(data.items ?? []);
-        setOpen(true);
-      } catch {
-        // Ignore search failures in UI.
-      }
-    }, 180);
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    fetch(`${basePath}/search-index.json`)
+      .then((response) => (response.ok ? response.json() : []))
+      .then((items: SearchItem[]) => {
+        if (!cancelled) setCatalogItems(items);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalogItems([]);
+      });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(t);
     };
-  }, [q]);
+  }, []);
+
+  const items = useMemo(() => {
+    const value = q.trim();
+    if (value.length < 2) return [];
+    const normalized = value.toLowerCase();
+    return catalogItems
+      .filter((item) => item.searchText.toLowerCase().includes(normalized))
+      .slice(0, 10);
+  }, [catalogItems, q]);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const value = q.trim();
-    if (!value) {
-      router.push(targetPath);
-      setOpen(false);
-      return;
-    }
-    router.push(`${targetPath}?q=${encodeURIComponent(value)}`);
-    setOpen(false);
+    setOpen(items.length > 0);
   }
 
   return (

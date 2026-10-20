@@ -1,17 +1,28 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
-import { cookies } from "next/headers";
 import DownloadButton from "@/components/DownloadButton";
-import { getEpisodeBySlug, getEpisodeDetailsFromPageUrl } from "@/lib/catalog";
-import { normalizeLang, t, type Lang } from "@/lib/i18n";
+import {
+  getCatalog,
+  getEpisodeBySlug,
+  getEpisodeDetailsFromPageUrl,
+} from "@/lib/catalog";
+import { t, type Lang } from "@/lib/i18n";
 import TranslateText from "@/components/TranslateText";
+
+export async function generateStaticParams() {
+  const catalog = await getCatalog();
+  return catalog.categories.flatMap((category) =>
+    category.episodes.map((episode) => ({ slug: episode.slug })),
+  );
+}
 
 export default async function EpisodePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const lang = normalizeLang((await cookies()).get("tt_lang")?.value) as Lang;
+  const lang = "fr" as Lang;
   const s = t(lang);
   const { slug } = await params;
   const found = await getEpisodeBySlug(slug);
@@ -40,9 +51,11 @@ export default async function EpisodePage({
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex gap-6">
           {episodeWithDetails.thumbnailUrl ? (
-            <img
+            <Image
               src={episodeWithDetails.thumbnailUrl}
               alt={episodeWithDetails.title}
+              width={224}
+              height={144}
               className="h-36 w-56 flex-shrink-0 rounded-xl object-cover"
             />
           ) : null}

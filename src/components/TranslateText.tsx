@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Lang } from "@/lib/i18n";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function TranslateText({
   text,
@@ -14,10 +15,12 @@ export default function TranslateText({
   enabled?: boolean;
   className?: string;
 }) {
+  const { lang: activeLang } = useLanguage();
+  const currentLang = activeLang ?? lang;
   const shouldTranslate = enabled ?? true;
   const [translated, setTranslated] = useState<string | null>(null);
 
-  const key = useMemo(() => `${lang}::${text}`, [lang, text]);
+  const key = useMemo(() => `${currentLang}::${text}`, [currentLang, text]);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,7 +34,7 @@ export default function TranslateText({
         setTranslated(null);
         return;
       }
-      if (lang === "en") {
+      if (currentLang === "en") {
         setTranslated(null);
         return;
       }
@@ -39,17 +42,21 @@ export default function TranslateText({
       setTranslated(null);
 
       try {
-        const res = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, to: lang }),
-        });
+        const url =
+          "https://translate.googleapis.com/translate_a/single" +
+          `?client=gtx&sl=auto&tl=${encodeURIComponent(currentLang)}&dt=t&q=${encodeURIComponent(text)}`;
+        const res = await fetch(url);
         if (!res.ok) return;
-        const data = (await res.json()) as { translated?: string };
+        const data: unknown = await res.json();
         if (cancelled) return;
-        if (typeof data.translated === "string") {
-          setTranslated(data.translated);
-        }
+        const segments = Array.isArray(data) && Array.isArray(data[0])
+          ? data[0]
+          : [];
+        const result = segments
+          .map((segment) => (Array.isArray(segment) ? segment[0] : undefined))
+          .filter((value): value is string => typeof value === "string")
+          .join("");
+        if (result) setTranslated(result);
       } catch {
         // Keep original text on errors.
       }
@@ -60,7 +67,7 @@ export default function TranslateText({
     return () => {
       cancelled = true;
     };
-  }, [key, lang, shouldTranslate, text]);
+  }, [key, currentLang, shouldTranslate, text]);
 
   return (
     <span className={className ?? undefined}>{translated ?? text}</span>

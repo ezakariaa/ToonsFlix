@@ -1,32 +1,12 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { getCatalog } from "@/lib/catalog";
-import { normalizeLang, t, type Lang } from "@/lib/i18n";
+import { t, type Lang } from "@/lib/i18n";
 import TranslateText from "@/components/TranslateText";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const lang = normalizeLang((await cookies()).get("tt_lang")?.value) as Lang;
+export default async function Home() {
+  const lang = "fr" as Lang;
   const s = t(lang);
   const catalog = await getCatalog();
-  const { q } = await searchParams;
-  const query = (q ?? "").trim().toLowerCase();
-
-  const filteredCategories = query
-    ? catalog.categories.filter((category) => {
-        const haystack = [
-          category.name,
-          category.description ?? "",
-          ...category.episodes.map((e) => e.title),
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(query);
-      })
-    : catalog.categories;
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-8">
       <div className="mb-6">
@@ -36,14 +16,8 @@ export default async function Home({
         </p>
       </div>
 
-      {filteredCategories.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">
-          {s.noSearchResults}
-        </div>
-      ) : null}
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {filteredCategories.map((category) => (
+        {catalog.categories.map((category) => (
           <Link
             key={category.slug}
             href={`/category/${category.slug}`}

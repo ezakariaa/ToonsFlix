@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import type { Episode } from "@/lib/catalog";
 import { t, type Lang } from "@/lib/i18n";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function DownloadButton({
   episode,
@@ -20,8 +21,8 @@ export default function DownloadButton({
   openHref?: string;
 }) {
   const { downloadUrl, pageUrl } = episode;
-  const [isDownloading, setIsDownloading] = useState(false);
-  const s = t(lang);
+  const { lang: activeLang } = useLanguage();
+  const s = t(activeLang || lang);
 
   const openClass =
     className ??
@@ -32,47 +33,24 @@ export default function DownloadButton({
     "inline-flex items-center justify-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50";
 
   function handleOpen() {
-    if (openHref) {
-      window.location.href = openHref;
-      return;
-    }
     if (!pageUrl) return;
     window.open(pageUrl, "_blank", "noopener,noreferrer");
   }
 
-  async function handleDownload() {
-    if (downloadUrl) return;
-    if (!episode.slug) return;
-    if (isDownloading) return;
-    setIsDownloading(true);
-    try {
-      const res = await fetch(
-        `/api/episode-download?slug=${encodeURIComponent(episode.slug)}`,
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { downloadUrl?: string };
-      if (!data.downloadUrl) return;
-
-      const a = document.createElement("a");
-      a.href = data.downloadUrl;
-      a.download = "";
-      a.rel = "noopener noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } finally {
-      setIsDownloading(false);
-    }
-  }
+  const openControl = openHref ? (
+    <Link className={openClass} href={openHref}>
+      {s.open}
+    </Link>
+  ) : (
+    <button type="button" onClick={handleOpen} className={openClass}>
+      {s.open}
+    </button>
+  );
 
   // If both URLs are available, show both buttons side-by-side.
   if (downloadUrl && pageUrl) {
     if (!showDownload && showOpen) {
-      return (
-        <button type="button" onClick={handleOpen} className={openClass}>
-          {s.open}
-        </button>
-      );
+      return openControl;
     }
     if (!showOpen && showDownload) {
       return (
@@ -84,9 +62,7 @@ export default function DownloadButton({
     return (
       <div className="flex items-center gap-2">
         {showOpen ? (
-          <button type="button" onClick={handleOpen} className={openClass}>
-            {s.open}
-          </button>
+          openControl
         ) : null}
         <a className={downloadClass} href={downloadUrl} download>
           {s.download}
@@ -119,24 +95,13 @@ export default function DownloadButton({
       );
     }
     if (!showDownload) {
-      return (
-        <button type="button" onClick={handleOpen} className={openClass}>
-          {s.open}
-        </button>
-      );
+      return openControl;
     }
     return (
       <div className="flex items-center gap-2">
-        <button type="button" onClick={handleOpen} className={openClass}>
-          {s.open}
-        </button>
-        <button
-          type="button"
-          onClick={handleDownload}
-          disabled={isDownloading}
-          className={downloadClass}
-        >
-          {isDownloading ? "..." : s.download}
+        {openControl}
+        <button type="button" disabled className={downloadClass}>
+          {s.unavailable}
         </button>
       </div>
     );
